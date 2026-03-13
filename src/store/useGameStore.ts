@@ -20,6 +20,8 @@ import {
   canUpgradeBuilding,
   canUpgradeDefense,
 } from '@/config/gameConfig';
+import { useBaseLayoutStore } from '@/store/useBaseLayoutStore';
+import { getEmpireStorageCapacity } from '@/components/empire/systems/economy';
 
 // ============================================
 // TYPES
@@ -99,8 +101,9 @@ export interface GameActions {
   togglePauseGrowth: () => boolean;
 
   // Platform integration
-  addBamboo: (amount: number, source: string) => void;
-  addXp: (amount: number, source: string) => void;
+  addBamboo: (amount: number, source?: string) => void;
+  spendBamboo: (amount: number) => boolean;
+  addXp: (amount: number, source?: string) => void;
 
   // Modifier management
   addModifier: (modifier: Modifier) => void;
@@ -120,6 +123,16 @@ export interface GameActions {
 }
 
 type GameStore = GameState & GameActions;
+
+const getActiveEmpireStorageCapacity = (): number | null => {
+  const placedBuildings = useBaseLayoutStore.getState().buildings;
+
+  if (placedBuildings.length === 0) {
+    return null;
+  }
+
+  return getEmpireStorageCapacity(placedBuildings);
+};
 
 // ============================================
 // INITIAL STATE
@@ -366,9 +379,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // PLATFORM INTEGRATION
   // ----------------------------------------
 
-  addBamboo: (amount: number, _source: string) => {
+  addBamboo: (amount: number, _source?: string) => {
     const state = get();
-    const capacity = get().getStorageCapacity();
+    const capacity = getActiveEmpireStorageCapacity() ?? get().getStorageCapacity();
     const newBamboo = Math.min(state.bamboo + amount, capacity);
 
     set({
@@ -377,7 +390,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
-  addXp: (amount: number, _source: string) => {
+  spendBamboo: (amount: number) => {
+    const state = get();
+    if (state.bamboo < amount) {
+      return false;
+    }
+    set({
+      bamboo: state.bamboo - amount,
+    });
+    return true;
+  },
+
+  addXp: (amount: number, _source?: string) => {
     const state = get();
 
     set({
@@ -522,6 +546,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   getStorageCapacity: () => {
+    const activeEmpireCapacity = getActiveEmpireStorageCapacity();
+    if (activeEmpireCapacity !== null) {
+      return activeEmpireCapacity;
+    }
+
     const state = get();
     const storageStats = getBuildingStats('bambooStorage', state.buildings.bambooStorage);
     let capacity = storageStats.capacity || 200;

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useGameStore } from '@/store/useGameStore';
+import { initializeCreditStore } from '@/store/useCreditStore';
 import { loadGameState, createFreshState } from '@/engine/persistence';
 
 /**
@@ -24,11 +25,15 @@ const GameStateInitializer = () => {
           const freshState = createFreshState();
           useGameStore.getState().loadState(freshState);
         }
+        
+        // Initialize credit store from localStorage
+        initializeCreditStore();
       } catch (error) {
         console.error('Failed to initialize game state:', error);
         // Still initialize with fresh state to prevent blocking
         const freshState = createFreshState();
         useGameStore.getState().loadState(freshState);
+        initializeCreditStore();
       }
     };
 
