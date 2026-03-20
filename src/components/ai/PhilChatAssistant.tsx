@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Send, Bot, User, Lightbulb, TrendingUp, DollarSign, Loader2, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import DOMPurify from 'dompurify';
 
 interface PhilResponse {
@@ -24,7 +25,19 @@ interface Message {
   sources?: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Mock session context — replace with real data once the backend is available
+// ---------------------------------------------------------------------------
+const MOCK_SESSION = {
+  sessionId: 'mock-session-abc123',
+  completedModules: ['Budgeting 101', 'Intro to Credit', 'Emergency Funds'],
+};
+// ---------------------------------------------------------------------------
+
 const PhilChatAssistant: React.FC = () => {
+  const { profile } = useAuth();
+  const userLevel = (profile?.app_version as string) || 'intermediate';
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -68,47 +81,68 @@ const PhilChatAssistant: React.FC = () => {
     setIsTyping(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('AskPhil', {
-        body: { message: currentInput }
-      });
+      // Build context string from completed modules
+      const moduleContext = `User has completed the following modules: ${MOCK_SESSION.completedModules.join(', ')}.`;
 
-      if (error) {
-        throw new Error(error.message || 'Failed to get response from Phil');
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      // Parse the structured JSON response
-      const response = data as PhilResponse;
-
-      const philResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response.answer || 'I apologize, but I could not generate a response.',
-        sender: 'phil',
-        timestamp: new Date(),
-        studyNext: response.study_next || [],
-        sources: response.sources || [],
-        suggestions: response.study_next?.slice(0, 3) || [
-          "Tell me more about this",
-          "What should I do next?",
-          "Give me an example"
-        ]
+      const payload = {
+        message: currentInput,
+        userLevel,
+        sessionId: MOCK_SESSION.sessionId,
+        context: moduleContext,
       };
+
+      console.log('--- AI PAYLOAD ---', payload);
+
+      let philResponse: Message;
+
+      try {
+        const { data, error } = await supabase.functions.invoke('AskPhil', {
+          body: payload,
+        });
+
+        if (error) throw new Error(error.message || 'Failed to get response from Phil');
+        if (data?.error) throw new Error(data.error);
+
+        const response = data as PhilResponse;
+
+        philResponse = {
+          id: (Date.now() + 1).toString(),
+          text: response.answer || 'I apologize, but I could not generate a response.',
+          sender: 'phil',
+          timestamp: new Date(),
+          studyNext: response.study_next || [],
+          sources: response.sources || [],
+          suggestions: response.study_next?.slice(0, 3) || [
+            'Tell me more about this',
+            'What should I do next?',
+            'Give me an example',
+          ],
+        };
+      } catch (invokeError: any) {
+        console.warn('Backend unavailable — using mock response:', invokeError?.message);
+
+        const lastModule = MOCK_SESSION.completedModules[MOCK_SESSION.completedModules.length - 1];
+        philResponse = {
+          id: (Date.now() + 1).toString(),
+          text: `Mock Response: I see you have completed ${lastModule}! Based on your ${userLevel} level, here is your answer...`,
+          sender: 'phil',
+          timestamp: new Date(),
+        };
+      }
 
       setMessages(prev => [...prev, philResponse]);
     } catch (error: any) {
-      console.error('Error getting Phil response:', error);
-      
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Sorry, I'm having trouble responding right now. Please try again in a moment! 🐼",
-        sender: 'phil',
-        timestamp: new Date()
-      };
+      console.error('Unexpected error in handleSendMessage:', error);
 
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          text: "Sorry, I'm having trouble responding right now. Please try again in a moment! 🐼",
+          sender: 'phil',
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsTyping(false);
     }
