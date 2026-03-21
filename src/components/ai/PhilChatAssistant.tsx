@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,11 @@ const MOCK_SESSION = {
 };
 // ---------------------------------------------------------------------------
 
-const PhilChatAssistant: React.FC = () => {
+export interface PhilChatAssistantHandle {
+  sendMessage: (text: string) => void;
+}
+
+const PhilChatAssistant = forwardRef<PhilChatAssistantHandle>((_, ref) => {
   const { profile } = useAuth();
   const userLevel = (profile?.app_version as string) || 'intermediate';
 
@@ -65,27 +69,25 @@ const PhilChatAssistant: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+  const handleSendMessageDirect = async (text: string) => {
+    if (!text.trim()) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputMessage,
+      text,
       sender: 'user',
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = inputMessage;
     setInputMessage('');
     setIsTyping(true);
 
     try {
-      // Build context string from completed modules
       const moduleContext = `User has completed the following modules: ${MOCK_SESSION.completedModules.join(', ')}.`;
 
       const payload = {
-        message: currentInput,
+        message: text,
         userLevel,
         sessionId: MOCK_SESSION.sessionId,
         context: moduleContext,
@@ -148,19 +150,31 @@ const PhilChatAssistant: React.FC = () => {
     }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setInputMessage(suggestion);
+  const handleSendMessage = async () => {
+    await handleSendMessageDirect(inputMessage);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleSuggestionClick = (suggestion: string) => {
+    setTimeout(() => {
+      handleSendMessageDirect(suggestion);
+    }, 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    sendMessage: (text: string) => {
+      handleSendMessageDirect(text);
+    },
+  }));
+
   return (
-    <div className="max-w-4xl mx-auto h-[600px] flex flex-col">
+    <div className="max-w-4xl mx-auto h-[calc(100vh-20rem)] min-h-[400px] flex flex-col">
       <Card className="flex-1 flex flex-col">
         <CardHeader className="flex-shrink-0">
           <CardTitle className="flex items-center gap-2">
@@ -174,10 +188,10 @@ const PhilChatAssistant: React.FC = () => {
         
         <CardContent className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-            {messages.map((message) => (
+            {messages.map((message, idx) => (
               <div
                 key={message.id}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} ${idx === 0 ? 'animate-fade-in' : ''}`}
               >
                 <div className={`max-w-[80%] ${message.sender === 'user' ? 'order-2' : 'order-1'}`}>
                   <div
@@ -282,7 +296,7 @@ const PhilChatAssistant: React.FC = () => {
             <textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               placeholder="Ask Phil anything about finance..."
               className="flex-1 resize-none border rounded-lg px-3 py-2 min-h-[44px] max-h-32"
               rows={1}
@@ -317,6 +331,8 @@ const PhilChatAssistant: React.FC = () => {
       </div>
     </div>
   );
-};
+});
+
+PhilChatAssistant.displayName = 'PhilChatAssistant';
 
 export default PhilChatAssistant;
