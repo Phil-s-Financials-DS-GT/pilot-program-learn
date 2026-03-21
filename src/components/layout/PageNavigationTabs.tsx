@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Crown } from 'lucide-react';
+import { Crown, MessageCircle } from 'lucide-react';
 
 const PageNavigationTabs: React.FC = () => {
   const location = useLocation();
@@ -10,6 +10,7 @@ const PageNavigationTabs: React.FC = () => {
   const getCurrentTab = () => {
     if (location.pathname === '/learn') return 'learn';
     if (location.pathname === '/empire') return 'empire';
+    if (location.pathname === '/ask-phil') return 'ask-phil';
     return 'home';
   };
   
@@ -22,6 +23,8 @@ const PageNavigationTabs: React.FC = () => {
       navigate('/empire');
     } else if (value === 'learn') {
       navigate('/learn');
+    } else if (value === 'ask-phil') {
+      navigate('/ask-phil');
     }
   };
   
@@ -48,6 +51,13 @@ const PageNavigationTabs: React.FC = () => {
               className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-6"
             >
               Learn
+            </TabsTrigger>
+            <TabsTrigger 
+              value="ask-phil" 
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-6"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Ask Phil
             </TabsTrigger>
           </TabsList>
         </Tabs>

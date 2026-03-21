@@ -12,6 +12,7 @@ import GameStateInitializer from "@/components/game/GameStateInitializer";
 import Index from "./pages/Index";
 import LearnPage from "./pages/LearnPage";
 import EmpirePage from "./pages/EmpirePage";
+import AskPhilPage from "./pages/AskPhilPage";
 import { Analytics } from "@vercel/analytics/react";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ function App() {
                     <Route path="/" element={<Index />} />
                     <Route path="/empire" element={<EmpirePage />} />
                     <Route path="/learn" element={<LearnPage />} />
+                    <Route path="/ask-phil" element={<AskPhilPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </MinimalLayout>
