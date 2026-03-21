@@ -22,6 +22,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const message = String(body?.message ?? "").trim();
+    const userLevel = String(body?.userLevel ?? "intermediate").trim();
 
     if (!message) {
       return new Response(JSON.stringify({ error: "Missing message" }), {
@@ -52,8 +53,18 @@ serve(async (req) => {
     // Azure AI Foundry chat-completions path with API version
     const url = `${endpointBase}/chat/completions?api-version=2024-05-01-preview`;
 
+    const styleGuides: Record<string, string> = {
+      beginner: "Target Audience: Middle School. Use simple language, emojis, and concrete analogies (like food, gaming, or sports). Avoid jargon.",
+      intermediate: "Target Audience: High School. Use standard language. Explain complex terms if they appear.",
+      advanced: "Target Audience: Adult/College. Use professional financial terminology. Be concise and technical.",
+    };
+
+    const styleGuide = styleGuides[userLevel] ?? styleGuides["intermediate"];
+
     const system = `
 You are AskPhil. Follow this internal workflow every time.
+
+Style guide: ${styleGuide}
 
 1) Router
 - Restate the user goal in one sentence.
@@ -64,13 +75,10 @@ You are AskPhil. Follow this internal workflow every time.
 - If the user asks for latest, today, news, prices, deadlines, or "who is", set needs_web=true.
 - If no sources are provided, keep sources empty and continue.
 
-3) Translator
-- Produce three versions: Middle School, High School, College.
+3) Writer
+- Write the answer using the style guide above.
 
-4) Writer
-- Return ONLY the High School version unless the user asks for another level.
-
-5) Internal Librarian
+4) Internal Librarian
 - End with Study next and list 3 study items.
 
 Output rules
